@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>Babylon.js 2025 Продвинутая сцена</title>
+<style>
+    html, body {
+        margin: 0; padding: 0; overflow: hidden; height: 100%;
+        background: linear-gradient(135deg, #1e1e2f, #3a3a5a);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    #renderCanvas {
+        width: 100vw;
+        height: 100vh;
+        touch-action: none;
+        display: block;
+    }
+    #info {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0,0,0,0.3);
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-weight: 600;
+        user-select: none;
+        z-index: 10;
+    }
+</style>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+</head>
+<body>
+<canvas id="renderCanvas"></canvas>
+<div id="info">
+Object reacts on mouse. Panel is to change the color.
+</div>
+
+<script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, stencil: true});
+    let pointerX = 0, pointerY = 0;
+
+    const createScene = () => {
+        const scene = new BABYLON.Scene(engine);
+
+        // Камера
+        const camera = new BABYLON.ArcRotateCamera("camera", Math.PI/4, Math.PI/4, 6, BABYLON.Vector3.Zero(), scene);
+        camera.attachControl(canvas, true);
+        camera.wheelPrecision = 50;
+        camera.minZ = 0.1;
+        camera.lowerRadiusLimit = 3;
+        camera.upperRadiusLimit = 10;
+
+        // HDRI окружение и небо
+        scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.dds", scene);
+        scene.createDefaultSkybox(scene.environmentTexture, true, 1000, 0.3);
+
+        // Свет и тени
+        const light = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+        light.position = new BABYLON.Vector3(20, 40, 20);
+        light.intensity = 1.2;
+        light.shadowEnabled = true;
+
+        const shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
+        shadowGenerator.useBlurExponentialShadowMap = true;
+        shadowGenerator.blurKernel = 32;
+
+        // obj TorusKnot
+        const mesh = BABYLON.MeshBuilder.CreateTorusKnot("torusKnot", {
+            radius: 1, tube: 0.3,
+            radialSegments: 128, tubularSegments: 64, p: 2, q: 3
+        }, scene);
+
+        const pbr = new BABYLON.PBRMaterial("pbr", scene);
+        pbr.albedoColor = new BABYLON.Color3(0.15, 0.6, 0.9);
+        pbr.metallic = 0.8;
+        pbr.roughness = 0.15;
+        pbr.reflectivityColor = new BABYLON.Color3(0.9, 0.9, 1);
+        mesh.material = pbr;
+
+        mesh.receiveShadows = true;
+        shadowGenerator.addShadowCaster(mesh);
+
+        // floor
+        const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 20}, scene);
+        const groundMat = new BABYLON.PBRMaterial("groundMat", scene);
+        groundMat.albedoColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+        groundMat.metallic = 1;
+        groundMat.roughness = 0.2;
+        groundMat.reflectivityColor = new BABYLON.Color3(0.5, 0.5, 0.6);
+        ground.material = groundMat;
+        ground.receiveShadows = true;
+
+        // prtclrs glwng
+        const particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
+        particleSystem.particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
+        particleSystem.emitter = mesh; // от объекта
+        particleSystem.minEmitBox = new BABYLON.Vector3(-0.5, -0.5, -0.5);
+        particleSystem.maxEmitBox = new BABYLON.Vector3(0.5, 0.5, 0.5);
+        particleSystem.color1 = new BABYLON.Color4(0.15, 0.6, 0.9, 1);
+        particleSystem.color2 = new BABYLON.Color4(0.2, 0.7, 1, 1);
+        particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.5, 0);
+        particleSystem.minSize = 0.01;
+        particleSystem.maxSize = 0.03;
+        particleSystem.minLifeTime = 1;
+        particleSystem.maxLifeTime = 2;
+        particleSystem.emitRate = 300;
+        particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+        particleSystem.gravity = new BABYLON.Vector3(0, 0, 0);
+        particleSystem.direction1 = new BABYLON.Vector3(-0.2, 0.2, -0.2);
+        particleSystem.direction2 = new BABYLON.Vector3(0.2, 0.3, 0.2);
+        particleSystem.minAngularSpeed = 0;
+        particleSystem.maxAngularSpeed = Math.PI;
+        particleSystem.minEmitPower = 0.1;
+        particleSystem.maxEmitPower = 0.3;
+        particleSystem.updateSpeed = 0.005;
+        particleSystem.start();
+
+        // Пост-эффекты — Bloom и Motion Blur
+        const pipeline = new BABYLON.DefaultRenderingPipeline(
+            "defaultPipeline",
+            true,
+            scene,
+            [camera]
+        );
+        pipeline.bloomEnabled = true;
+        pipeline.bloomThreshold = 0.8;
+        pipeline.bloomWeight = 0.4;
+        pipeline.bloomKernel = 64;
+        pipeline.bloomScale = 0.5;
+
+        pipeline.motionBlurEnabled = true;
+        pipeline.motionBlurSamples = 16;
+        pipeline.motionStrength = 0.5;
+
+        // Реакция на мышь — вращаем объект в зависимости от позиции курсора
+        window.addEventListener('mousemove', (event) => {
+            pointerX = (event.clientX / window.innerWidth) * 2 - 1; // от -1 до 1
+            pointerY = (event.clientY / window.innerHeight) * 2 - 1;
+        });
+
+        scene.registerBeforeRender(() => {
+            mesh.rotation.y += 0.01 + pointerX * 0.02;
+            mesh.rotation.x = 0.3 * Math.sin(performance.now() * 0.002) + pointerY * 0.3;
+        });
+
+        // GUI — цветовая панель
+        const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        const panel = new BABYLON.GUI.StackPanel();
+        panel.width = "220px";
+        panel.fontSize = "14px";
+        panel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        panel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        panel.paddingRight = 20;
+        advancedTexture.addControl(panel);
+
+        const header = new BABYLON.GUI.TextBlock();
+        header.text = "Objects color";
+        header.height = "30px";
+        header.color = "white";
+        header.paddingBottom = 10;
+        panel.addControl(header);
+
+        const colorPicker = new BABYLON.GUI.ColorPicker();
+        colorPicker.value = pbr.albedoColor;
+        colorPicker.height = "150px";
+        colorPicker.width = "150px";
+        colorPicker.onValueChangedObservable.add((value) => {
+            pbr.albedoColor = value;
+        });
+        panel.addControl(colorPicker);
+
+        return scene;
+    };
+
+    const scene = createScene();
+
+    engine.runRenderLoop(() => {
+        scene.render();
+    });
+
+    window.addEventListener("resize", () => {
+        engine.resize();
+    });
+</script>
+</body>
+</html>
