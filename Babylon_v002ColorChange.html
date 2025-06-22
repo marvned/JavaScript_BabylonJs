@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<title>Babylon.js 2025 Продвинутая сцена</title>
+<title>Babylon.js 2025 Color Pitch GUI on an Object</title>
 <style>
     html, body {
         margin: 0; padding: 0; overflow: hidden; height: 100%;
@@ -45,7 +45,7 @@ Object reacts on mouse. Panel is to change the color.
     const createScene = () => {
         const scene = new BABYLON.Scene(engine);
 
-        // Камера
+        // cam
         const camera = new BABYLON.ArcRotateCamera("camera", Math.PI/4, Math.PI/4, 6, BABYLON.Vector3.Zero(), scene);
         camera.attachControl(canvas, true);
         camera.wheelPrecision = 50;
@@ -53,11 +53,11 @@ Object reacts on mouse. Panel is to change the color.
         camera.lowerRadiusLimit = 3;
         camera.upperRadiusLimit = 10;
 
-        // HDRI окружение и небо
+        // HDRI surrounding and sky
         scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.dds", scene);
         scene.createDefaultSkybox(scene.environmentTexture, true, 1000, 0.3);
 
-        // Свет и тени
+        // light and shdw
         const light = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
         light.position = new BABYLON.Vector3(20, 40, 20);
         light.intensity = 1.2;
@@ -118,7 +118,7 @@ Object reacts on mouse. Panel is to change the color.
         particleSystem.updateSpeed = 0.005;
         particleSystem.start();
 
-        // Пост-эффекты — Bloom и Motion Blur
+        // post effects — Bloom и Motion Blur
         const pipeline = new BABYLON.DefaultRenderingPipeline(
             "defaultPipeline",
             true,
@@ -135,7 +135,7 @@ Object reacts on mouse. Panel is to change the color.
         pipeline.motionBlurSamples = 16;
         pipeline.motionStrength = 0.5;
 
-        // Реакция на мышь — вращаем объект в зависимости от позиции курсора
+        // Reaction on mouse movigin obj 
         window.addEventListener('mousemove', (event) => {
             pointerX = (event.clientX / window.innerWidth) * 2 - 1; // от -1 до 1
             pointerY = (event.clientY / window.innerHeight) * 2 - 1;
@@ -146,7 +146,7 @@ Object reacts on mouse. Panel is to change the color.
             mesh.rotation.x = 0.3 * Math.sin(performance.now() * 0.002) + pointerY * 0.3;
         });
 
-        // GUI — цветовая панель
+        // GUI —  clr  pnl 
         const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
         const panel = new BABYLON.GUI.StackPanel();
         panel.width = "220px";
